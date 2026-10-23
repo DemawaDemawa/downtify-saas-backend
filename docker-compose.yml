@@ -1,0 +1,42 @@
+services:
+  api:
+    build: .
+    container_name: downtify-saas-api
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-8088}:8088"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: downtify-saas-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-downtify_saas}
+      POSTGRES_USER: ${POSTGRES_USER:-downtify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - downtify_saas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-downtify} -d ${POSTGRES_DB:-downtify_saas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: downtify-saas-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - downtify_saas_redisdata:/data
+    restart: unless-stopped
+
+volumes:
+  downtify_saas_pgdata:
+  downtify_saas_redisdata:
